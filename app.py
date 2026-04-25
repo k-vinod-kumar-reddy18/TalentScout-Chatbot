@@ -91,15 +91,20 @@ def call_groq(user_text):
         })
 
         # Groq chat API
-        completion = st.session_state.client.chat.completions.create(
-            model="llama3-8b-8192",  # fast & free-friendly
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                *st.session_state.messages
-            ],
-            temperature=0.7,
-            max_tokens=500,
-        )
+  completion = st.session_state.client.chat.completions.create(
+    model="llama-3.1-8b-instant",
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT}
+    ] + [
+        {
+            "role": m["role"],
+            "content": str(m["content"])
+        }
+        for m in st.session_state.messages
+    ],
+    temperature=0.7,
+    max_tokens=500,
+)
 
         reply = completion.choices[0].message.content.strip()
 
