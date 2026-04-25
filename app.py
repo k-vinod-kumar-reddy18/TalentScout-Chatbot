@@ -1,9 +1,9 @@
 """
-TalentScout Hiring Assistant
+TalentScout Hiring Assistant (Groq)
 """
 
 import streamlit as st
-from anthropic import Anthropic
+from groq import Groq
 import os
 
 # ── PAGE CONFIG ─────────────────────────────────────────────
@@ -14,15 +14,15 @@ st.set_page_config(
 )
 
 # ── LOAD API KEY ────────────────────────────────────────────
-api_key = os.getenv("ANTHROPIC_API_KEY")
+api_key = os.getenv("GROQ_API_KEY")
 
 if not api_key:
-    st.error("❌ API key not found. Add ANTHROPIC_API_KEY in Streamlit Secrets.")
+    st.error("❌ GROQ_API_KEY not found in Streamlit Secrets")
     st.stop()
 
 # ── INIT CLIENT ─────────────────────────────────────────────
 if "client" not in st.session_state:
-    st.session_state.client = Anthropic(api_key=api_key)
+    st.session_state.client = Groq(api_key=api_key)
 
 # ── CUSTOM CSS ──────────────────────────────────────────────
 st.markdown("""
@@ -82,7 +82,7 @@ def is_exit(text):
     return any(word in text.lower() for word in EXIT_KEYWORDS)
 
 
-def call_claude(user_text):
+def call_groq(user_text):
     try:
         # Add user message
         st.session_state.messages.append({
@@ -90,20 +90,18 @@ def call_claude(user_text):
             "content": str(user_text)
         })
 
-        # FIX: ensure correct message format
-        formatted_messages = [
-            {"role": m["role"], "content": str(m["content"])}
-            for m in st.session_state.messages
-        ]
-
-        response = st.session_state.client.messages.create(
-            model="claude-3-sonnet-20240229",  # stable model
+        # Groq chat API
+        completion = st.session_state.client.chat.completions.create(
+            model="llama3-8b-8192",  # fast & free-friendly
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *st.session_state.messages
+            ],
+            temperature=0.7,
             max_tokens=500,
-            system=SYSTEM_PROMPT,
-            messages=formatted_messages,
         )
 
-        reply = response.content[0].text.strip()
+        reply = completion.choices[0].message.content.strip()
 
         # Save assistant reply
         st.session_state.messages.append({
@@ -114,7 +112,7 @@ def call_claude(user_text):
         return reply
 
     except Exception as e:
-        return f"❌ Claude Error: {e}"
+        return f"❌ Groq Error: {e}"
 
 
 def handle_send(user_input):
@@ -127,7 +125,7 @@ def handle_send(user_input):
     })
 
     with st.spinner("Thinking..."):
-        reply = call_claude(user_input)
+        reply = call_groq(user_input)
 
     st.session_state.display_messages.append({
         "role": "assistant",
@@ -141,7 +139,7 @@ def handle_send(user_input):
 
 # ── FIRST MESSAGE ───────────────────────────────────────────
 if not st.session_state.display_messages:
-    opening = call_claude("Hello, I am a candidate starting my screening.")
+    opening = call_groq("Hello, I am a candidate starting my screening.")
     st.session_state.display_messages.append({
         "role": "assistant",
         "content": opening
@@ -153,7 +151,7 @@ stage_name, stage_pct = STAGES[st.session_state.stage_index]
 st.markdown(f"""
 <div class="chat-header">
 <h2>🎯 TalentScout Hiring Assistant</h2>
-<p>Powered by Claude</p>
+<p>Powered by Groq (LLaMA 3)</p>
 <span class="stage-badge">{stage_name}</span>
 </div>
 """, unsafe_allow_html=True)
@@ -176,4 +174,8 @@ if st.session_state.ended:
 else:
     if user_input := st.chat_input("Type your message..."):
         handle_send(user_input)
-        st.rerun()
+        st.rerun() 
+
+
+
+
