@@ -1,8 +1,12 @@
+"""
+TalentScout Hiring Assistant
+"""
+
 import streamlit as st
 from anthropic import Anthropic
 import os
 
-# ── Page config ─────────────────────────────────────────────
+# ── PAGE CONFIG ─────────────────────────────────────────────
 st.set_page_config(
     page_title="TalentScout — Hiring Assistant",
     page_icon="🎯",
@@ -10,15 +14,17 @@ st.set_page_config(
 )
 
 # ── LOAD API KEY ────────────────────────────────────────────
-import os
-
 api_key = os.getenv("ANTHROPIC_API_KEY")
 
 if not api_key:
-    st.error("❌ API key not found")
+    st.error("❌ API key not found. Add ANTHROPIC_API_KEY in Streamlit Secrets.")
     st.stop()
 
-# ── Custom CSS ──────────────────────────────────────────────
+# ── INIT CLIENT ─────────────────────────────────────────────
+if "client" not in st.session_state:
+    st.session_state.client = Anthropic(api_key=api_key)
+
+# ── CUSTOM CSS ──────────────────────────────────────────────
 st.markdown("""
 <style>
 .stApp { max-width: 760px; margin: 0 auto; }
@@ -40,7 +46,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── SYSTEM PROMPT ───────────────────────────────────────────
-SYSTEM_PROMPT = """You are a professional Hiring Assistant for TalentScout..."""
+SYSTEM_PROMPT = """
+You are a professional Hiring Assistant for TalentScout.
+Conduct structured candidate screening step by step.
+Ask one question at a time. Keep answers short and relevant.
+"""
 
 EXIT_KEYWORDS = {"exit", "quit", "bye", "goodbye", "end", "stop"}
 
@@ -53,20 +63,19 @@ STAGES = [
     ("Completed", 100),
 ]
 
-# ── INIT STATE ──────────────────────────────────────────────
-def init_state():
-    defaults = {
-        "messages": [],
-        "display_messages": [],
-        "stage_index": 0,
-        "ended": False,
-        "client": Anthropic(api_key=api_key),  # ✅ FIXED
-    }
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
+# ── INIT SESSION STATE ──────────────────────────────────────
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-init_state()
+if "display_messages" not in st.session_state:
+    st.session_state.display_messages = []
+
+if "stage_index" not in st.session_state:
+    st.session_state.stage_index = 0
+
+if "ended" not in st.session_state:
+    st.session_state.ended = False
+
 
 # ── FUNCTIONS ───────────────────────────────────────────────
 def is_exit(text):
@@ -75,34 +84,55 @@ def is_exit(text):
 
 def call_claude(user_text):
     try:
-        st.session_state.messages.append({"role": "user", "content": user_text})
+        # Add user message
+        st.session_state.messages.append({
+            "role": "user",
+            "content": str(user_text)
+        })
+
+        # FIX: ensure correct message format
+        formatted_messages = [
+            {"role": m["role"], "content": str(m["content"])}
+            for m in st.session_state.messages
+        ]
 
         response = st.session_state.client.messages.create(
-            model="claude-3-sonnet-20240229",  # ✅ safer model
+            model="claude-3-sonnet-20240229",  # stable model
             max_tokens=500,
             system=SYSTEM_PROMPT,
-            messages=st.session_state.messages,
+            messages=formatted_messages,
         )
 
         reply = response.content[0].text.strip()
-        st.session_state.messages.append({"role": "assistant", "content": reply})
+
+        # Save assistant reply
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": reply
+        })
 
         return reply
 
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"❌ Claude Error: {e}"
 
 
 def handle_send(user_input):
     if not user_input.strip() or st.session_state.ended:
         return
 
-    st.session_state.display_messages.append({"role": "user", "content": user_input})
+    st.session_state.display_messages.append({
+        "role": "user",
+        "content": user_input
+    })
 
     with st.spinner("Thinking..."):
         reply = call_claude(user_input)
 
-    st.session_state.display_messages.append({"role": "assistant", "content": reply})
+    st.session_state.display_messages.append({
+        "role": "assistant",
+        "content": reply
+    })
 
     if is_exit(user_input):
         st.session_state.ended = True
@@ -112,9 +142,12 @@ def handle_send(user_input):
 # ── FIRST MESSAGE ───────────────────────────────────────────
 if not st.session_state.display_messages:
     opening = call_claude("Hello, I am a candidate starting my screening.")
-    st.session_state.display_messages.append({"role": "assistant", "content": opening})
+    st.session_state.display_messages.append({
+        "role": "assistant",
+        "content": opening
+    })
 
-# ── UI ──────────────────────────────────────────────────────
+# ── UI HEADER ───────────────────────────────────────────────
 stage_name, stage_pct = STAGES[st.session_state.stage_index]
 
 st.markdown(f"""
@@ -127,19 +160,19 @@ st.markdown(f"""
 
 st.progress(stage_pct / 100)
 
-# Chat history
+# ── CHAT DISPLAY ────────────────────────────────────────────
 for msg in st.session_state.display_messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# End state
+# ── END SCREEN ──────────────────────────────────────────────
 if st.session_state.ended:
     st.success("✅ Screening complete!")
     if st.button("Restart"):
         st.session_state.clear()
         st.rerun()
 
-# Input
+# ── INPUT ───────────────────────────────────────────────────
 else:
     if user_input := st.chat_input("Type your message..."):
         handle_send(user_input)
