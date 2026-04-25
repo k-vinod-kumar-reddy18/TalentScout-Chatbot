@@ -112,7 +112,7 @@ def call_claude(user_text: str) -> str:
     st.session_state.messages.append({"role": "user", "content": user_text})
 
     response = st.session_state.client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5",
         max_tokens=1000,
         system=SYSTEM_PROMPT,
         messages=st.session_state.messages,
