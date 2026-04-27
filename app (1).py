@@ -1,7 +1,6 @@
 """
 TalentScout Hiring Assistant
-AI/ML Intern Assignment — Pagagi
-Author: K Vinod Kumar Reddy
+
 """
 
 import streamlit as st
