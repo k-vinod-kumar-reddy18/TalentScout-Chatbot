@@ -2,9 +2,6 @@
 
 An intelligent conversational hiring assistant chatbot built for **TalentScout**, a fictional technology recruitment agency. The chatbot conducts structured initial candidate screenings — collecting personal and professional information, then generating tailored technical interview questions based on the candidate's declared tech stack.
 
-> **Assignment:** AI/ML Intern — Pagagi  
-> **Author:** K Vinod Kumar Reddy  
-
 ---
 
 ## 🚀 Live Demo
