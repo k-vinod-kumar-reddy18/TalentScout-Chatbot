@@ -1,7 +1,6 @@
 """
 TalentScout — AI Hiring Assistant
-Author : K Vinod Kumar Reddy
-GitHub : https://github.com/k-vinod-kumar-reddy18/TalentScout-Chatbot
+
 """
 
 import streamlit as st
