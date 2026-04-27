@@ -1,4 +1,3 @@
-streamlit
-groq
-pypdf
-python-docx
+anthropic>=0.40.0
+streamlit>=1.35.0
+ 
